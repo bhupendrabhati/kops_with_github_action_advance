@@ -32,23 +32,39 @@ This repository contains an end-to-end Internal Developer Platform (IDP) demo bu
 
 ## Repo structure (what you'll find)
 ```
-infra-kops/                             # Terraform code (creates kops S3 bucket, IAM, VPC, etc.)
-    policies/
-        kops_iam_policy                 # JSON source file
-        kops_iam_policy_notes           # Text File
-    scripts/                            # helpers: open_nodeport.sh, close_nodeport.sh, build_and_push_ecr.sh
-       bootstrap.sh                     # Bootstrap Script
+.github/                                # Directory contains Github Action Workflow Files  
+   workflows/                           # Github Action workflow files
+      full-cleanup.yml                  # Clean Entire Infra + KOPS 
+      infra-provision.yml               # Provision infra using terraform with Github Action
+      kops-provision.yml                # Provision KOPS ingra using Github Action
+app/                                    # Deploy app to test cluster
+   nginx/                               # Contain app files
+      nginx-deploy.yml                  # Deployment file to deploy nginx
+      nginx-svc.yml                     # Nginx service to check ports
+infra-backend-s3/                       # Create backend S3 bucket
+   main.tf                              # Provision S3 bucket 
+   outputs.tf                           # Backend S3 Bucket Output
+   variables.tf                         # Variables defined 
+infra-terraform/                        # Terraform code (create IAM, VPC, etc.)
+    scripts/                            # Create and Destroy infra 
+        destroy.sh                      # Destroy Infra
+        provision.sh                    # Provision Infra
+    backend.tf                          # backend S3 and Dynamo Table
     iam_kops.tf                         # IAM Policies
-    nginx-deploy.yaml                   # example nginx deployment
-    nginx-svc.yaml                      # example nginx service (NodePort)
     outputs.tf                          # Terrafrom Outputs
     providers.tf                        # Provider is AWS 
-    random.tf                           # Suffix Random numbers for S3 bucket
-    README.md                           # This file or Current File
-    s3_kops.tf                          # S3 bucket policies
-    terraform.tfvars.example            # Some other variables Defined here
+    terraform.tfvars                    # Some other variables Defined here
     variables.tf                        # Variables for main.tf
-    vpc_minimal.tf                      # VPC Configuration
+    vpc.tf                              # VPC Configuration
+kops/                                   # Cluster Provision Using KOPS
+   cluster.yaml.tmpl                    # File used to Provision Cluster
+   scripts/                             # Scripts which runs to provision and destroy
+      create.sh                         # Create Cluster 
+      delete.sh                         # Delete Cluster
+scripts/                                # To delete entire Infra + KOPS
+   confirm_destroy.sh                   # Delete entire infra with KOPS cluster
+   delete_bucket.sh                     # Delete S3 bucket used for backend and KOPS
+README.md                               # Contain details of Entire Project
 ```
 
 ---
@@ -404,7 +420,7 @@ State Management:
 
 ### Answer:
 
-```text
+```
 I built a production-style Kubernetes platform on AWS using Terraform and kOps.
 
 Terraform is responsible only for base infrastructure like VPC and IAM.
@@ -424,8 +440,10 @@ and ordered cleanup, and I deploy a demo NGINX application to validate the clust
 ---
 
 ## “How do you handle failures?”
+
 ### Answer:
 
+```
 CI/CD does not roll back automatically, so I implemented explicit rollback logic
 using GitHub Actions conditions.
 
@@ -433,21 +451,27 @@ If Terraform fails, the pipeline automatically runs terraform destroy.
 If kOps fails, the cluster is deleted automatically.
 
 Full cleanup is protected by explicit confirmation to avoid accidental deletion.
+```
 
 ---
 
 ## “Why kOps instead of EKS?”
+
 ### Answer:
 
+```
 kOps gives me full control over the Kubernetes control plane and infrastructure.
 It’s closer to how Kubernetes works internally and is excellent for understanding
 cluster lifecycle, networking, and etcd management.
+```
 
 ---
 
 ## “EXPLAIN THIS TO HR” (NON-TECHNICAL)
+
 ### Answer:
 
+```
 I built an automated cloud platform that can create and delete Kubernetes clusters
 on AWS safely and reliably.
 
@@ -456,5 +480,5 @@ such as automatically cleaning up resources if something goes wrong.
 
 It’s designed like real company systems, where infrastructure is created,
 validated, and removed in a controlled way using automation pipelines.
-
+```
 ---
