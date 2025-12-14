@@ -1,0 +1,44 @@
+name: Infra Provision
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        description: "Deployment environment (e.g., dev, staging, prod)"
+      aws_region:
+        required: true
+        default: ap-south-1
+        description: "AWS region for deployment"
+      state_bucket:
+        required: true
+        description: "Terraform + kOps backend bucket"
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init & Apply
+        id: terraform_apply
+        env:
+          TF_VAR_environment: ${{ inputs.environment }}
+          TF_VAR_aws_region: ${{ inputs.aws_region }}
+        run: |
+          cd infra-terraform
+          terraform init \
+            -backend-config="bucket=${{ inputs.state_bucket }}" \
+            -backend-config="dynamodb_table=terraform-locks"
+          terraform apply -auto-approve
+
+      - name: Rollback Terraform on failure
+        if: failure()
+        run: |
+          echo "❌ Terraform failed, rolling back infra"
+          cd infra-terraform
+          terraform destroy -auto-approve || true
+          echo "✅ Rollback completed"

@@ -1,0 +1,140 @@
+apiVersion: kops.k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+spec:
+  kubernetesVersion: "1.26.9"
+
+  cloudProvider:
+    name: aws
+
+  configBase: ${KOPS_STATE_STORE}/${CLUSTER_NAME}
+  networkCIDR: 10.0.0.0/16
+
+  subnets:
+    - name: idp-subnet-private-a
+      zone: ap-south-1a
+      cidr: 10.0.1.0/24
+      type: Private
+    - name: idp-subnet-private-b
+      zone: ap-south-1b
+      cidr: 10.0.2.0/24
+      type: Private
+    - name: idp-subnet-private-c
+      zone: ap-south-1c
+      cidr: 10.0.3.0/24
+      type: Private
+
+  topology:
+    masters: private
+    nodes: private
+    bastion: public
+
+  sshAccess:
+    - ${SSH_CIDR}
+
+  nodePortAccess:
+    - 0.0.0.0/0
+
+  authorization:
+    rbac: {}
+
+  networking:
+    calico: {}
+
+  api:
+    loadBalancer:
+      type: Public
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+  kubeAPIServer:
+    enableAdmissionPlugins:
+      - NodeRestriction
+
+  etcdClusters:
+    - name: main
+      spec:
+        etcdMembers:
+          - name: a
+            instanceGroup: master-ap-south-1a
+          - name: b
+            instanceGroup: master-ap-south-1b
+          - name: c
+            instanceGroup: master-ap-south-1c
+
+  cloudLabels:
+    Environment: ${ENVIRONMENT}
+    ManagedBy: kops
+
+---
+# InstanceGroup: master-ap-south-1a
+apiVersion: kops.k8s.io/v1alpha3
+kind: InstanceGroup
+metadata:
+  name: master-ap-south-1a
+spec:
+  role: Master
+  subnets:
+    - ap-south-1a
+  machineType: ${CONTROL_PLANE_SIZE}
+  rootVolumeSize: 20
+  rootVolumeType: gp3
+  minSize: ${CP_A}
+  maxSize: ${CP_A}
+
+---
+# InstanceGroup: master-ap-south-1b
+apiVersion: kops.k8s.io/v1alpha3
+kind: InstanceGroup
+metadata:
+  name: master-ap-south-1b
+spec:
+  role: Master
+  subnets:
+    - ap-south-1b
+  machineType: ${CONTROL_PLANE_SIZE}
+  rootVolumeSize: 20
+  rootVolumeType: gp3
+  minSize: ${CP_B}
+  maxSize: ${CP_B}
+
+---
+# InstanceGroup: master-ap-south-1c
+apiVersion: kops.k8s.io/v1alpha3
+kind: InstanceGroup
+metadata:
+  name: master-ap-south-1c
+spec:
+  role: Master
+  subnets:
+    - ap-south-1c
+  machineType: ${CONTROL_PLANE_SIZE}
+  rootVolumeSize: 20
+  rootVolumeType: gp3
+  minSize: ${CP_C}
+  maxSize: ${CP_C}
+
+---
+# InstanceGroup: nodes
+apiVersion: kops.k8s.io/v1alpha3
+kind: InstanceGroup
+metadata:
+  name: nodes
+spec:
+  role: Node
+  subnets:
+    - ap-south-1a
+    - ap-south-1b
+    - ap-south-1c
+  machineType: ${WORKER_SIZE}
+  rootVolumeSize: 20
+  rootVolumeType: gp3
+  minSize: ${WORKER_COUNT}
+  maxSize: ${WORKER_COUNT}
+  additionalUserData:
+    - name: 99-disable-aws-metadata
+      type: text/x-shellscript
+      content: |
+        #!/bin/bash
+        # additional node bootstrapping commands if needed

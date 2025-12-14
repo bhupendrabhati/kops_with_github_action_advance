@@ -1,0 +1,50 @@
+name: Full Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: "Type yes to destroy EVERYTHING"
+        required: true
+      state_bucket:
+        description: "Terraform + kOps backend bucket"
+        required: true
+      cluster_name:
+        description: "kOps cluster name"
+        required: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm destroy
+        env:
+          CONFIRM_DESTROY: ${{ inputs.confirm_destroy }}
+        run: |
+          bash scripts/confirm_destroy.sh
+
+      - name: Delete kOps cluster
+        env:
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+          STATE_BUCKET: ${{ inputs.state_bucket }}
+          KOPS_STATE_STORE: s3://${{ inputs.state_bucket }}/kops
+        run: |
+          bash kops/scripts/delete.sh || true
+
+      - name: Destroy Terraform infra
+        run: |
+          cd infra-terraform
+          terraform init \
+            -backend-config="bucket=${{ inputs.state_bucket }}" \
+            -backend-config="dynamodb_table=terraform-locks"
+          terraform destroy -auto-approve || true
+
+      - name: Delete backend bucket (LAST)
+        env:
+          STATE_BUCKET: ${{ inputs.state_bucket }}
+          CONFIRM_DESTROY: ${{ inputs.confirm_destroy }}
+        run: |
+          bash scripts/delete_bucket.sh
