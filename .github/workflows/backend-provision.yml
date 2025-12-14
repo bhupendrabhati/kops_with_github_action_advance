@@ -1,4 +1,4 @@
-name: Backend Provision (S3 + DynamoDB)
+name: 01. Backend Provision (S3 + DynamoDB)
 
 on:
   workflow_dispatch:

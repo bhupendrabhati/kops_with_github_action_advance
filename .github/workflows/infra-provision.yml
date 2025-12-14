@@ -1,4 +1,4 @@
-name: Infra Provision
+name: 02. Infra Provision
 
 on:
   workflow_dispatch:
