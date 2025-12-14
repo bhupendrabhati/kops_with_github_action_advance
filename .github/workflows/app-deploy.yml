@@ -1,0 +1,43 @@
+name: App Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        required: true
+        description: "Kubernetes cluster name"
+      state_bucket:
+        required: true
+        description: "S3 bucket name for kOps state"
+      aws_region:
+        required: true
+        description: "AWS region"
+        default: ap-south-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Install kOps
+        run: |
+          curl -Lo kops https://github.com/kubernetes/kops/releases/latest/download/kops-linux-amd64
+          chmod +x kops
+          sudo mv kops /usr/local/bin/
+
+      - name: Configure kubeconfig using kOps
+        env:
+          KOPS_STATE_STORE: s3://${{ inputs.state_bucket }}/kops
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+        run: |
+          kops export kubeconfig --name $CLUSTER_NAME
+
+      - name: Deploy NGINX app
+        run: |
+          kubectl apply -f apps/nginx/nginx-deploy.yaml
+          kubectl apply -f apps/nginx/nginx-svc.yaml

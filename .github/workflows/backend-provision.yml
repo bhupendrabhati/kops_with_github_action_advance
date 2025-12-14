@@ -1,0 +1,35 @@
+name: Backend Provision (S3 + DynamoDB)
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_bucket_name:
+        description: "S3 bucket name for Terraform backend & kOps state"
+        required: true
+      environment:
+        description: "Environment (dev / stage / prod)"
+        required: true
+        default: dev
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: ap-south-1
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init & Apply (Backend)
+        env:
+          TF_VAR_backend_bucket_name: ${{ inputs.backend_bucket_name }}
+          TF_VAR_environment: ${{ inputs.environment }}
+          TF_VAR_aws_region: ${{ inputs.aws_region }}
+        run: |
+          cd infra-backend-s3
+          terraform init
+          terraform apply -auto-approve
